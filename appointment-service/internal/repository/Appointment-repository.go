@@ -1,9 +1,10 @@
 package repository
 
 import (
-	"appointment-service/internal/model"
 	"database/sql"
 	"errors"
+
+	"github.com/bgl96395/ADP2_ASSIGNMENT2/appointment-service/internal/model"
 
 	_ "github.com/lib/pq"
 )

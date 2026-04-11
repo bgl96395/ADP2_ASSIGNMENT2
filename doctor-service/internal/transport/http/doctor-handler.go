@@ -3,7 +3,7 @@ package http
 import (
 	"net/http"
 
-	"doctor-service/internal/usecase"
+	"github.com/bgl96395/ADP2_ASSIGNMENT2/doctor-service/internal/usecase"
 
 	"github.com/gin-gonic/gin"
 )

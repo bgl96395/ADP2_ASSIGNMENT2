@@ -2,8 +2,9 @@ package repository
 
 import (
 	"database/sql"
-	"doctor-service/internal/model"
 	"errors"
+
+	"github.com/bgl96395/ADP2_ASSIGNMENT2/doctor-service/internal/model"
 
 	_ "github.com/lib/pq"
 )

@@ -1,11 +1,12 @@
 package app
 
 import (
-	"appointment-service/internal/repository"
-	transport "appointment-service/internal/transport/http"
-	"appointment-service/internal/usecase"
 	"database/sql"
 	"log"
+
+	"github.com/bgl96395/ADP2_ASSIGNMENT2/appointment-service/internal/repository"
+	transport "github.com/bgl96395/ADP2_ASSIGNMENT2/appointment-service/internal/transport/http"
+	"github.com/bgl96395/ADP2_ASSIGNMENT2/appointment-service/internal/usecase"
 
 	_ "github.com/lib/pq"
 

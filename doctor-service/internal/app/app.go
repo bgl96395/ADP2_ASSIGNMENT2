@@ -2,10 +2,11 @@ package app
 
 import (
 	"database/sql"
-	"doctor-service/internal/repository"
-	transporthttp "doctor-service/internal/transport/http"
-	"doctor-service/internal/usecase"
 	"log"
+
+	"github.com/bgl96395/ADP2_ASSIGNMENT2/doctor-service/internal/repository"
+	transporthttp "github.com/bgl96395/ADP2_ASSIGNMENT2/doctor-service/internal/transport/http"
+	"github.com/bgl96395/ADP2_ASSIGNMENT2/doctor-service/internal/usecase"
 
 	_ "github.com/lib/pq"
 

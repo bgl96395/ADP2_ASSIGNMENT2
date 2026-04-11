@@ -1,10 +1,11 @@
 package http
 
 import (
-	"appointment-service/internal/model"
-	"appointment-service/internal/usecase"
 	"errors"
 	"net/http"
+
+	"github.com/bgl96395/ADP2_ASSIGNMENT2/appointment-service/internal/model"
+	"github.com/bgl96395/ADP2_ASSIGNMENT2/appointment-service/internal/usecase"
 
 	"github.com/gin-gonic/gin"
 )

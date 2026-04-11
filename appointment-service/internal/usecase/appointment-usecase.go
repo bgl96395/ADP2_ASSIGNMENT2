@@ -1,11 +1,12 @@
 package usecase
 
 import (
-	"appointment-service/internal/model"
-	"appointment-service/internal/repository"
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/bgl96395/ADP2_ASSIGNMENT2/appointment-service/internal/model"
+	"github.com/bgl96395/ADP2_ASSIGNMENT2/appointment-service/internal/repository"
 )
 
 var (

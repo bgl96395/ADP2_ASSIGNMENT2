@@ -3,8 +3,8 @@ package usecase
 import (
 	"errors"
 
-	"doctor-service/internal/model"
-	"doctor-service/internal/repository"
+	"github.com/bgl96395/ADP2_ASSIGNMENT2/doctor-service/internal/model"
+	"github.com/bgl96395/ADP2_ASSIGNMENT2/doctor-service/internal/repository"
 )
 
 var (
