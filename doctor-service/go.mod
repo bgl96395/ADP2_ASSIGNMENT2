@@ -1,4 +1,4 @@
-module doctor-service
+module github.com/bgl96395/ADP2_ASSIGNMENT2/doctor-service
 
 go 1.25.4
 
