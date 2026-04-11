@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package appointment;
 
-option go_package = "github.com/bgl96395/ADP2_ASSIGNMENT2/appointment-service/proto;appointmentpb";
+option go_package = "appointmentpb";
 
 service AppointmentService {
     rpc CreateAppointment(CreateAppointmentRequest) returns (AppointmentResponse);

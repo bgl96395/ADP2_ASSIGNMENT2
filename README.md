@@ -1,58 +1,88 @@
-# Medical Scheduling Platform
+# Medical Scheduling Platform — gRPC Migration
 
 ## Project overview and purpose
-The Medical Scheduling Platform is a system for managing doctors and appointments. It's divided into two microservices so that each can develop, deploy, and scale independently, without affecting the other.
+The Medical Scheduling Platform is a two-service system for managing doctors and appointments. In this version, all communication is handled exclusively through gRPC, replacing the previous REST-based transport layer. Domain logic, Clean Architecture layering, and bounded-context boundaries are preserved from Assignment 1.
 
 ## Service responsibilities
-- Doctor Service (port 8080) — manages doctor profiles. It stores data in its own in-memory storage and is independent of other services.
-- Appointment Service (port 8081) — manages appointments. Before creating an appointment, it verifies the doctor's existence via an HTTP request to Doctor Service.
+- Doctor Service (port 50051) — manages doctor profiles. Owns its own PostgreSQL database.
+- Appointment Service (port 50052) — manages appointments. Validates doctor existence by calling Doctor Service over gRPC before creating or updating an appointment.
 
 ## Folder structure and dependency flow
 
 doctor-service/
 
-├── cmd/         
-└── internal/             
-
-      ├── model/       
-      ├── usecase/     
-      ├── repository/  
-      ├── transport/   
-      └── app/                        
+      ├── cmd/
+      └── internal/
+            ├── model/
+            ├── usecase/
+            ├── repository/
+            ├── transport/grpc/
+            └── app/
+            └── proto/
+                  └── doctorpb/
 
 appointment-service/
 
-├── cmd/         
-└── internal/
+      ├── cmd/
+      └── internal/
+            ├── model/
+            ├── usecase/
+            ├── repository/
+            ├── transport/grpc/
+            └── app/
+            └── proto/
+                  ├── appointmentpb/
+                  └── doctorpb/
 
-      ├── model/       
-      ├── usecase/     
-      ├── repository/  
-      ├── transport/   
-      └── app/ 
+Dependency direction: transport → usecase → repository → model
 
-direction of dependencies: transport → usecase → repository → model
+## How to install protoc and regenerate stubs
 
-## Inter-service communication
-When an appointment is created, the Appointment Service performs a GET /doctors/{id} to the Doctor Service. If the response is 200, the doctor exists, and the appointment is created. If 404, a "doctor not found" error is returned.
+1. Install protoc from https://grpc.io/docs/protoc-installation/
+2. Install Go plugins:
+
+            go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+
+            go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+3. Regenerate stubs:
+
+            cd doctor-service/proto
+
+                  protoc --go_out=. --go-grpc_out=. doctor.proto
+
+            cd appointment-service/proto
+
+                  protoc --go_out=. --go-grpc_out=. appointment.proto
 
 ## How to run the project
 
-* in 1st terminal
-cd doctor-service
-go run ./cmd/doctorService
+Start Doctor Service first, then Appointment Service.
 
-* in 2nd terminal
-cd appointment-service
-go run ./cmd/appointmentService
+Terminal 1:
 
-## Why a shared database was not used
-Each service owns its own data. A shared database would create tight coupling between services—a schema change in one would break another. This would turn the system into a distributed monolith.
+      cd doctor-service
+
+            go run ./cmd/doctorService
+
+Terminal 2:
+
+      cd appointment-service
+
+            go run ./cmd/appointmentService
+
+## Inter-service communication
+When an appointment is created, the Appointment Service calls DoctorService.GetDoctor over gRPC. If the doctor exists, the appointment is created. If NOT_FOUND is returned, a FailedPrecondition error is returned to the client. If the Doctor Service is unreachable, an Unavailable error is returned.
 
 ## Failure scenario
+If Doctor Service is unavailable, the Appointment Service returns gRPC status code 14 UNAVAILABLE with message "doctor service unavailable". In a production system this would require a timeout policy, a retry strategy for transient failures, and a circuit breaker to prevent cascading failures.
 
-If Doctor Service is unavailable when a record is created, the Appointment Service returns a error "doctor service unavailable" error and logs the failure. In a production system, this would require a timeout, a retry strategy for transient failures, and a circuit breaker to prevent cascading failures.
+## REST vs gRPC trade-offs
 
-## Architecture diagram 
-![architecture](image-1.png)
+* When to choose gRPC: internal microservice communication where performance and strict contracts matter.
+* When to choose REST: public APIs, browser clients, or simple integrations.
 
+## Why a shared database was not used
+Each service owns its own data. A shared database would create tight coupling — a schema change in one service would break another, turning the system into a distributed monolith.
+
+## Architecture diagram
+![Diagram](image.png)

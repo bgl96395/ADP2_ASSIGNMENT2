@@ -4,7 +4,7 @@
 // 	protoc        v7.34.1
 // source: doctor.proto
 
-package doctorrb
+package doctorpb
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -277,7 +277,7 @@ var File_doctor_proto protoreflect.FileDescriptor
 
 const file_doctor_proto_rawDesc = "" +
 	"\n" +
-	"\fdoctor.proto\x12\fpackage_name\"p\n" +
+	"\fdoctor.proto\x12\x06doctor\"p\n" +
 	"\x13CreateDoctorRequest\x12\x1b\n" +
 	"\tfull_name\x18\x01 \x01(\tR\bfullName\x12&\n" +
 	"\x0especialization\x18\x02 \x01(\tR\x0especialization\x12\x14\n" +
@@ -289,13 +289,13 @@ const file_doctor_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
 	"\tfull_name\x18\x02 \x01(\tR\bfullName\x12&\n" +
 	"\x0especialization\x18\x03 \x01(\tR\x0especialization\x12\x14\n" +
-	"\x05email\x18\x04 \x01(\tR\x05email\"M\n" +
-	"\x13ListDoctorsResponse\x126\n" +
-	"\adoctors\x18\x01 \x03(\v2\x1c.package_name.DoctorResponseR\adoctors2\xff\x01\n" +
-	"\rDoctorService\x12O\n" +
-	"\fCreateDoctor\x12!.package_name.CreateDoctorRequest\x1a\x1c.package_name.DoctorResponse\x12I\n" +
-	"\tGetDoctor\x12\x1e.package_name.GetDoctorRequest\x1a\x1c.package_name.DoctorResponse\x12R\n" +
-	"\vListDoctors\x12 .package_name.ListDoctorsRequest\x1a!.package_name.ListDoctorsResponseBDZBgithub.com/bgl96395/ADP2_ASSIGNMENT2/doctor-service/proto;doctorrbb\x06proto3"
+	"\x05email\x18\x04 \x01(\tR\x05email\"G\n" +
+	"\x13ListDoctorsResponse\x120\n" +
+	"\adoctors\x18\x01 \x03(\v2\x16.doctor.DoctorResponseR\adoctors2\xdb\x01\n" +
+	"\rDoctorService\x12C\n" +
+	"\fCreateDoctor\x12\x1b.doctor.CreateDoctorRequest\x1a\x16.doctor.DoctorResponse\x12=\n" +
+	"\tGetDoctor\x12\x18.doctor.GetDoctorRequest\x1a\x16.doctor.DoctorResponse\x12F\n" +
+	"\vListDoctors\x12\x1a.doctor.ListDoctorsRequest\x1a\x1b.doctor.ListDoctorsResponseBMZKgithub.com/bgl96395/ADP2_ASSIGNMENT2/doctor-service/proto/doctorpb;doctorpbb\x06proto3"
 
 var (
 	file_doctor_proto_rawDescOnce sync.Once
@@ -311,20 +311,20 @@ func file_doctor_proto_rawDescGZIP() []byte {
 
 var file_doctor_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_doctor_proto_goTypes = []any{
-	(*CreateDoctorRequest)(nil), // 0: package_name.CreateDoctorRequest
-	(*GetDoctorRequest)(nil),    // 1: package_name.GetDoctorRequest
-	(*ListDoctorsRequest)(nil),  // 2: package_name.ListDoctorsRequest
-	(*DoctorResponse)(nil),      // 3: package_name.DoctorResponse
-	(*ListDoctorsResponse)(nil), // 4: package_name.ListDoctorsResponse
+	(*CreateDoctorRequest)(nil), // 0: doctor.CreateDoctorRequest
+	(*GetDoctorRequest)(nil),    // 1: doctor.GetDoctorRequest
+	(*ListDoctorsRequest)(nil),  // 2: doctor.ListDoctorsRequest
+	(*DoctorResponse)(nil),      // 3: doctor.DoctorResponse
+	(*ListDoctorsResponse)(nil), // 4: doctor.ListDoctorsResponse
 }
 var file_doctor_proto_depIdxs = []int32{
-	3, // 0: package_name.ListDoctorsResponse.doctors:type_name -> package_name.DoctorResponse
-	0, // 1: package_name.DoctorService.CreateDoctor:input_type -> package_name.CreateDoctorRequest
-	1, // 2: package_name.DoctorService.GetDoctor:input_type -> package_name.GetDoctorRequest
-	2, // 3: package_name.DoctorService.ListDoctors:input_type -> package_name.ListDoctorsRequest
-	3, // 4: package_name.DoctorService.CreateDoctor:output_type -> package_name.DoctorResponse
-	3, // 5: package_name.DoctorService.GetDoctor:output_type -> package_name.DoctorResponse
-	4, // 6: package_name.DoctorService.ListDoctors:output_type -> package_name.ListDoctorsResponse
+	3, // 0: doctor.ListDoctorsResponse.doctors:type_name -> doctor.DoctorResponse
+	0, // 1: doctor.DoctorService.CreateDoctor:input_type -> doctor.CreateDoctorRequest
+	1, // 2: doctor.DoctorService.GetDoctor:input_type -> doctor.GetDoctorRequest
+	2, // 3: doctor.DoctorService.ListDoctors:input_type -> doctor.ListDoctorsRequest
+	3, // 4: doctor.DoctorService.CreateDoctor:output_type -> doctor.DoctorResponse
+	3, // 5: doctor.DoctorService.GetDoctor:output_type -> doctor.DoctorResponse
+	4, // 6: doctor.DoctorService.ListDoctors:output_type -> doctor.ListDoctorsResponse
 	4, // [4:7] is the sub-list for method output_type
 	1, // [1:4] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name

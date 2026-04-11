@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-package package_name;
+package doctor;
 
-option go_package = "github.com/bgl96395/ADP2_ASSIGNMENT2/doctor-service/proto;doctorrb";
+option go_package = "doctorpb";
 
 service DoctorService {
     rpc CreateDoctor(CreateDoctorRequest) returns (DoctorResponse);
