@@ -2,7 +2,6 @@ package grpc
 
 import (
 	"context"
-	"strconv"
 
 	"github.com/bgl96395/ADP2_ASSIGNMENT2/doctor-service/internal/usecase"
 	pb "github.com/bgl96395/ADP2_ASSIGNMENT2/doctor-service/proto/doctorpb"
@@ -32,7 +31,7 @@ func (handler *Doctor_handler) CreateDoctor(ctx context.Context, req *pb.CreateD
 	}
 
 	return &pb.DoctorResponse{
-		Id:             strconv.Itoa(doctor.ID),
+		Id:             doctor.ID,
 		FullName:       doctor.FullName,
 		Specialization: doctor.Specialization,
 		Email:          doctor.Email,
@@ -49,7 +48,7 @@ func (handler *Doctor_handler) GetDoctor(ctx context.Context, req *pb.GetDoctorR
 	}
 
 	return &pb.DoctorResponse{
-		Id:             strconv.Itoa(doctor.ID),
+		Id:             doctor.ID,
 		FullName:       doctor.FullName,
 		Specialization: doctor.Specialization,
 		Email:          doctor.Email,
@@ -65,7 +64,7 @@ func (handler *Doctor_handler) ListDoctors(ctx context.Context, req *pb.ListDoct
 	var doctors []*pb.DoctorResponse
 	for _, doctor := range list {
 		doctors = append(doctors, &pb.DoctorResponse{
-			Id:             strconv.Itoa(doctor.ID),
+			Id:             doctor.ID,
 			FullName:       doctor.FullName,
 			Specialization: doctor.Specialization,
 			Email:          doctor.Email,

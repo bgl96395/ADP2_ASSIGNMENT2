@@ -5,7 +5,6 @@ import (
 	"errors"
 
 	"github.com/bgl96395/ADP2_ASSIGNMENT2/doctor-service/internal/model"
-
 	_ "github.com/lib/pq"
 )
 
@@ -25,12 +24,17 @@ func New_postgre_doctor_repository(database *sql.DB) *Postgres_doctor_repository
 }
 
 func (repository *Postgres_doctor_repository) Save(doctor *model.Doctor) error {
-	_, err := repository.database.Exec(`INSERT INTO doctors (full_name, specialization, email) VALUES ($1, $2, $3)`, doctor.FullName, doctor.Specialization, doctor.Email)
+	_, err := repository.database.Exec(
+		`INSERT INTO doctors (id, full_name, specialization, email) VALUES ($1, $2, $3, $4)`,
+		doctor.ID, doctor.FullName, doctor.Specialization, doctor.Email,
+	)
 	return err
 }
 
 func (repository *Postgres_doctor_repository) Find_by_ID(id string) (*model.Doctor, error) {
-	row := repository.database.QueryRow(`SELECT id, full_name, specialization, email FROM doctors WHERE id = $1`, id)
+	row := repository.database.QueryRow(
+		`SELECT id, full_name, specialization, email FROM doctors WHERE id = $1`, id,
+	)
 	doctor := &model.Doctor{}
 	err := row.Scan(&doctor.ID, &doctor.FullName, &doctor.Specialization, &doctor.Email)
 	if err == sql.ErrNoRows {
@@ -43,7 +47,7 @@ func (repository *Postgres_doctor_repository) Find_by_ID(id string) (*model.Doct
 }
 
 func (repository *Postgres_doctor_repository) Find_all() ([]*model.Doctor, error) {
-	rows, err := repository.database.Query(`SELECT * FROM doctors`)
+	rows, err := repository.database.Query(`SELECT id, full_name, specialization, email FROM doctors`)
 	if err != nil {
 		return nil, err
 	}

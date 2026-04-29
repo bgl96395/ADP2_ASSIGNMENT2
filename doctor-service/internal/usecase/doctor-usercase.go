@@ -2,9 +2,13 @@ package usecase
 
 import (
 	"errors"
+	"fmt"
+	"time"
 
+	"github.com/bgl96395/ADP2_ASSIGNMENT2/doctor-service/internal/event"
 	"github.com/bgl96395/ADP2_ASSIGNMENT2/doctor-service/internal/model"
 	"github.com/bgl96395/ADP2_ASSIGNMENT2/doctor-service/internal/repository"
+	"github.com/google/uuid"
 )
 
 var (
@@ -15,10 +19,11 @@ var (
 
 type Doctor_usecase struct {
 	repository repository.Doctor_repository
+	publisher  event.EventPublisher
 }
 
-func New_doctor_usecase(repo repository.Doctor_repository) *Doctor_usecase {
-	return &Doctor_usecase{repository: repo}
+func New_doctor_usecase(repo repository.Doctor_repository, pub event.EventPublisher) *Doctor_usecase {
+	return &Doctor_usecase{repository: repo, publisher: pub}
 }
 
 func (usecase *Doctor_usecase) Create_doctor(fullName, specialization, email string) (*model.Doctor, error) {
@@ -33,6 +38,7 @@ func (usecase *Doctor_usecase) Create_doctor(fullName, specialization, email str
 	}
 
 	doctor := &model.Doctor{
+		ID:             uuid.New().String(),
 		FullName:       fullName,
 		Specialization: specialization,
 		Email:          email,
@@ -41,6 +47,19 @@ func (usecase *Doctor_usecase) Create_doctor(fullName, specialization, email str
 	if err != nil {
 		return nil, err
 	}
+
+	evt := event.DoctorCreatedEvent{
+		EventType:      "doctors.created",
+		OccurredAt:     time.Now().UTC(),
+		ID:             doctor.ID,
+		FullName:       doctor.FullName,
+		Specialization: doctor.Specialization,
+		Email:          doctor.Email,
+	}
+	if publisherError := usecase.publisher.Publish("doctors.created", evt); publisherError != nil {
+		fmt.Printf("ERROR: failed to publish doctors.created event: %v\n", publisherError)
+	}
+
 	return doctor, nil
 }
 

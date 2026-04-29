@@ -5,7 +5,6 @@ import (
 	"errors"
 
 	"github.com/bgl96395/ADP2_ASSIGNMENT2/appointment-service/internal/model"
-
 	_ "github.com/lib/pq"
 )
 
@@ -25,14 +24,25 @@ func New_postgres_appointment_repository(database *sql.DB) *Postgres_appointment
 }
 
 func (repository *Postgres_appointment_repository) Save(appointment *model.Appointment) error {
-	_, err := repository.database.Exec(`INSERT INTO appointments (title,description,doctor_id,status,created_at,updated_at) VALUES($1, $2, $3, $4, $5, $6)`, appointment.Title, appointment.Description, appointment.DoctorID, appointment.Status, appointment.CreatedAt, appointment.UpdatedAt)
+	_, err := repository.database.Exec(
+		`INSERT INTO appointments (id, title, description, doctor_id, status, created_at, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+		appointment.ID, appointment.Title, appointment.Description,
+		appointment.DoctorID, appointment.Status, appointment.CreatedAt, appointment.UpdatedAt,
+	)
 	return err
 }
 
 func (repository *Postgres_appointment_repository) Find_by_ID(id string) (*model.Appointment, error) {
-	row := repository.database.QueryRow(`SELECT id,title,description,doctor_id,status,created_at,updated_at FROM appointments WHERE id=$1`, id)
+	row := repository.database.QueryRow(
+		`SELECT id, title, description, doctor_id, status, created_at, updated_at
+		 FROM appointments WHERE id = $1`, id,
+	)
 	appointment := &model.Appointment{}
-	err := row.Scan(&appointment.ID, &appointment.Title, &appointment.Description, &appointment.DoctorID, &appointment.Status, &appointment.CreatedAt, &appointment.UpdatedAt)
+	err := row.Scan(
+		&appointment.ID, &appointment.Title, &appointment.Description,
+		&appointment.DoctorID, &appointment.Status, &appointment.CreatedAt, &appointment.UpdatedAt,
+	)
 	if err == sql.ErrNoRows {
 		return nil, errors.New("appointment not found")
 	}
@@ -43,7 +53,9 @@ func (repository *Postgres_appointment_repository) Find_by_ID(id string) (*model
 }
 
 func (repository *Postgres_appointment_repository) Find_all() ([]*model.Appointment, error) {
-	rows, err := repository.database.Query(`SELECT * FROM appointments`)
+	rows, err := repository.database.Query(
+		`SELECT id, title, description, doctor_id, status, created_at, updated_at FROM appointments`,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +64,10 @@ func (repository *Postgres_appointment_repository) Find_all() ([]*model.Appointm
 	var list []*model.Appointment
 	for rows.Next() {
 		appointment := &model.Appointment{}
-		err := rows.Scan(&appointment.ID, &appointment.Title, &appointment.Description, &appointment.DoctorID, &appointment.Status, &appointment.CreatedAt, &appointment.UpdatedAt)
+		err := rows.Scan(
+			&appointment.ID, &appointment.Title, &appointment.Description,
+			&appointment.DoctorID, &appointment.Status, &appointment.CreatedAt, &appointment.UpdatedAt,
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -62,7 +77,10 @@ func (repository *Postgres_appointment_repository) Find_all() ([]*model.Appointm
 }
 
 func (repository *Postgres_appointment_repository) Update(appointment *model.Appointment) error {
-	result, err := repository.database.Exec(`UPDATE appointments SET status = $1, updated_at = $2 WHERE id=$3`, &appointment.Status, &appointment.UpdatedAt, &appointment.ID)
+	result, err := repository.database.Exec(
+		`UPDATE appointments SET status = $1, updated_at = $2 WHERE id = $3`,
+		appointment.Status, appointment.UpdatedAt, appointment.ID,
+	)
 	if err != nil {
 		return err
 	}

@@ -25,8 +25,8 @@ func New_gRPC_doctor_client(addr string) (*GRPC_doctor_client, error) {
 func (c *GRPC_doctor_client) Doctor_exists(doctorID string) (bool, error) {
 	_, err := c.client.GetDoctor(context.Background(), &doctorpb.GetDoctorRequest{Id: doctorID})
 	if err != nil {
-		status_of, _ := status.FromError(err)
-		if status_of.Code() == codes.NotFound {
+		stat, _ := status.FromError(err)
+		if stat.Code() == codes.NotFound {
 			return false, nil
 		}
 		return false, err

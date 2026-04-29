@@ -1,7 +1,7 @@
 package model
 
 type Doctor struct {
-	ID             int
+	ID             string
 	FullName       string
 	Specialization string
 	Email          string

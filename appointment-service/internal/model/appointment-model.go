@@ -11,10 +11,10 @@ const (
 )
 
 type Appointment struct {
-	ID          int
+	ID          string
 	Title       string
 	Description string
-	DoctorID    int
+	DoctorID    string
 	Status      Status
 	CreatedAt   time.Time
 	UpdatedAt   time.Time

@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/bgl96395/ADP2_ASSIGNMENT2/appointment-service/internal/event"
 	"github.com/bgl96395/ADP2_ASSIGNMENT2/appointment-service/internal/model"
 	"github.com/bgl96395/ADP2_ASSIGNMENT2/appointment-service/internal/repository"
+	"github.com/google/uuid"
 )
 
 var (
@@ -21,21 +23,22 @@ var (
 type Appointment_usecase struct {
 	repo          repository.Appointment_repository
 	doctor_client Doctor_client
+	publisher     event.EventPublisher
 }
 
-func New_appointment_usecase(repo repository.Appointment_repository, doctor_client Doctor_client) *Appointment_usecase {
-	return &Appointment_usecase{repo: repo, doctor_client: doctor_client}
+func New_appointment_usecase(repo repository.Appointment_repository, doctor_client Doctor_client, pub event.EventPublisher) *Appointment_usecase {
+	return &Appointment_usecase{repo: repo, doctor_client: doctor_client, publisher: pub}
 }
 
-func (usecase *Appointment_usecase) Create_appointment(title, description string, doctorID int) (*model.Appointment, error) {
+func (usecase *Appointment_usecase) Create_appointment(title, description string, doctorID string) (*model.Appointment, error) {
 	if title == "" {
 		return nil, missing_title
 	}
-	if doctorID == 0 {
+	if doctorID == "" {
 		return nil, missing_doctor_id
 	}
 
-	exists, err := usecase.doctor_client.Doctor_exists(fmt.Sprintf("%d", doctorID))
+	exists, err := usecase.doctor_client.Doctor_exists(doctorID)
 	if err != nil {
 		return nil, E_doctor_service_unavailable
 	}
@@ -43,21 +46,36 @@ func (usecase *Appointment_usecase) Create_appointment(title, description string
 		return nil, doctor_not_found
 	}
 
-	current_time := time.Now()
-	appoinment := &model.Appointment{
+	now := time.Now()
+	appointment := &model.Appointment{
+		ID:          uuid.New().String(),
 		Title:       title,
 		Description: description,
 		DoctorID:    doctorID,
 		Status:      model.Status_new,
-		CreatedAt:   current_time,
-		UpdatedAt:   current_time,
+		CreatedAt:   now,
+		UpdatedAt:   now,
 	}
 
-	err = usecase.repo.Save(appoinment)
+	err = usecase.repo.Save(appointment)
 	if err != nil {
 		return nil, err
 	}
-	return appoinment, nil
+
+	evt := event.AppointmentCreatedEvent{
+		EventType:  "appointments.created",
+		OccurredAt: time.Now().UTC(),
+		ID:         appointment.ID,
+		Title:      appointment.Title,
+		DoctorID:   appointment.DoctorID,
+		Status:     string(appointment.Status),
+	}
+	publisherError := usecase.publisher.Publish("appointments.created", evt)
+	if publisherError != nil {
+		fmt.Printf("ERROR: failed to publish appointments.created: %v\n", publisherError)
+	}
+
+	return appointment, nil
 }
 
 func (usecase *Appointment_usecase) Get_appointment(id string) (*model.Appointment, error) {
@@ -81,11 +99,26 @@ func (usecase *Appointment_usecase) Update_status(id string, new_status model.St
 		return nil, invalid_transition
 	}
 
+	oldStatus := string(appointment.Status)
 	appointment.Status = new_status
 	appointment.UpdatedAt = time.Now()
+
 	err = usecase.repo.Update(appointment)
 	if err != nil {
 		return nil, err
 	}
+
+	evt := event.AppointmentStatusUpdatedEvent{
+		EventType:  "appointments.status_updated",
+		OccurredAt: time.Now().UTC(),
+		ID:         appointment.ID,
+		OldStatus:  oldStatus,
+		NewStatus:  string(new_status),
+	}
+	publisherError := usecase.publisher.Publish("appointments.status_updated", evt)
+	if publisherError != nil {
+		fmt.Printf("ERROR: failed to publish appointments.status_updated: %v\n", publisherError)
+	}
+
 	return appointment, nil
 }
