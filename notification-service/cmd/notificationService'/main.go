@@ -6,7 +6,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/bgl96395/ADP2_ASSIGNMENT2/notification-service/internal/subscriber"
+	"notification-service/internal/subscriber"
 )
 
 func main() {

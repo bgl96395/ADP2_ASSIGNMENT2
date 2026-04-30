@@ -1,88 +1,137 @@
-# Medical Scheduling Platform — gRPC Migration
+# AP2 Assignment 3 — Medical Scheduling Platform
 
-## Project overview and purpose
-The Medical Scheduling Platform is a two-service system for managing doctors and appointments. In this version, all communication is handled exclusively through gRPC, replacing the previous REST-based transport layer. Domain logic, Clean Architecture layering, and bounded-context boundaries are preserved from Assignment 1.
+## What changed compared to Assignment 2
 
-## Service responsibilities
-- Doctor Service (port 50051) — manages doctor profiles. Owns its own PostgreSQL database.
-- Appointment Service (port 50052) — manages appointments. Validates doctor existence by calling Doctor Service over gRPC before creating or updating an appointment.
+- Both services now use **golang-migrate** for schema management — no raw DDL in application code
+- Connection strings read from environment variables (no hardcoding)
+- After each successful write, services publish a domain event to **NATS**
+- New **Notification Service** subscribes to all three event subjects and logs structured JSON
 
-## Folder structure and dependency flow
+## Broker Choice: NATS (Core)
 
-doctor-service/
+**Chosen: NATS Core**
 
-      ├── cmd/
-      └── internal/
-            ├── model/
-            ├── usecase/
-            ├── repository/
-            ├── transport/grpc/
-            └── app/
-            └── proto/
-                  └── doctorpb/
+Reason: simpler setup (single binary, no Docker required for dev), zero configuration, fire-and-forget
+pub/sub is sufficient for a notification service that only logs events. RabbitMQ would be needed
+if guaranteed delivery, persistent queues, or dead-letter handling were required in production.
 
-appointment-service/
+## Environment Variables
 
-      ├── cmd/
-      └── internal/
-            ├── model/
-            ├── usecase/
-            ├── repository/
-            ├── transport/grpc/
-            └── app/
-            └── proto/
-                  ├── appointmentpb/
-                  └── doctorpb/
+### Doctor Service
+| Variable | Default | Description |
+|---|---|---|
+| DATABASE_URL | host=localhost port=5432 user=postgres password=postgres dbname=doctor sslmode=disable | PostgreSQL DSN |
+| NATS_URL | nats://localhost:4222 | NATS broker URL |
 
-Dependency direction: transport → usecase → repository → model
+### Appointment Service
+| Variable | Default | Description |
+|---|---|---|
+| DATABASE_URL | host=localhost port=5432 user=postgres password=postgres dbname=appointment sslmode=disable | PostgreSQL DSN |
+| NATS_URL | nats://localhost:4222 | NATS broker URL |
+| DOCTOR_SERVICE_ADDR | localhost:50051 | Doctor Service gRPC address |
 
-## How to install protoc and regenerate stubs
+### Notification Service
+| Variable | Default | Description |
+|---|---|---|
+| NATS_URL | nats://localhost:4222 | NATS broker URL |
 
-1. Install protoc from https://grpc.io/docs/protoc-installation/
-2. Install Go plugins:
+## Infrastructure Setup
 
-            go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+```bash
+# Start PostgreSQL
+docker run -d --name postgres \
+  -e POSTGRES_PASSWORD=postgres \
+  -p 5432:5432 \
+  postgres:16
 
-            go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
-3. Regenerate stubs:
+# Create databases
+docker exec -it postgres psql -U postgres -c "CREATE DATABASE doctor;"
+docker exec -it postgres psql -U postgres -c "CREATE DATABASE appointment;"
 
-            cd doctor-service/proto
+# Start NATS
+docker run -d --name nats -p 4222:4222 nats:latest
+```
 
-                  protoc --go_out=. --go-grpc_out=. doctor.proto
+## Migration Instructions
 
-            cd appointment-service/proto
+Migrations run automatically on service startup.
 
-                  protoc --go_out=. --go-grpc_out=. appointment.proto
+To run manually using golang-migrate CLI:
+```bash
+# Apply
+migrate -path ./doctor-service/migrations -database "postgres://postgres:postgres@localhost:5432/doctor?sslmode=disable" up
 
-## How to run the project
+# Rollback
+migrate -path ./doctor-service/migrations -database "postgres://postgres:postgres@localhost:5432/doctor?sslmode=disable" down
+```
 
-Start Doctor Service first, then Appointment Service.
+## Service Startup Order
 
-Terminal 1:
+1. Start PostgreSQL and NATS first
+2. Start Doctor Service (it must be up before Appointment Service connects)
+3. Start Appointment Service
+4. Start Notification Service
 
-      cd doctor-service
+```bash
+# Terminal 1
+cd doctor-service && go run ./cmd/doctor-service
 
-            go run ./cmd/doctorService
+# Terminal 2
+cd appointment-service && go run ./cmd/appointment-service  # wait for doctor-service
 
-Terminal 2:
+# Terminal 3
+cd notification-service && go run ./cmd/notification-service
+```
 
-      cd appointment-service
+## Event Contract
 
-            go run ./cmd/appointmentService
+| Subject | Publisher | Trigger | Fields |
+|---|---|---|---|
+| doctors.created | Doctor Service | CreateDoctor success | event_type, occurred_at, id, full_name, specialization, email |
+| appointments.created | Appointment Service | CreateAppointment success | event_type, occurred_at, id, title, doctor_id, status |
+| appointments.status_updated | Appointment Service | UpdateAppointmentStatus success | event_type, occurred_at, id, old_status, new_status |
 
-## Inter-service communication
-When an appointment is created, the Appointment Service calls DoctorService.GetDoctor over gRPC. If the doctor exists, the appointment is created. If NOT_FOUND is returned, a FailedPrecondition error is returned to the client. If the Doctor Service is unreachable, an Unavailable error is returned.
+## grpcurl Commands + Expected Notification Logs
 
-## Failure scenario
-If Doctor Service is unavailable, the Appointment Service returns gRPC status code 14 UNAVAILABLE with message "doctor service unavailable". In a production system this would require a timeout policy, a retry strategy for transient failures, and a circuit breaker to prevent cascading failures.
+```bash
+# 1. Create a doctor
+grpcurl -plaintext -d '{"full_name":"Dr. Aisha Seitkali","specialization":"Cardiology","email":"a.seitkali@clinic.kz"}' \
+  localhost:50051 doctor.DoctorService/CreateDoctor
 
-## REST vs gRPC trade-offs
+# Notification Service prints:
+{"time":"2026-05-01T10:23:44Z","subject":"doctors.created","event":{"event_type":"doctors.created","occurred_at":"...","id":"<uuid>","full_name":"Dr. Aisha Seitkali","specialization":"Cardiology","email":"a.seitkali@clinic.kz"}}
 
-* When to choose gRPC: internal microservice communication where performance and strict contracts matter.
-* When to choose REST: public APIs, browser clients, or simple integrations.
+# 2. Create an appointment (use the id from step 1)
+grpcurl -plaintext -d '{"title":"Initial cardiac consultation","description":"First visit","doctor_id":"<uuid from step 1>"}' \
+  localhost:50052 appointment.AppointmentService/CreateAppointment
 
-## Why a shared database was not used
-Each service owns its own data. A shared database would create tight coupling — a schema change in one service would break another, turning the system into a distributed monolith.
+# Notification Service prints:
+{"time":"...","subject":"appointments.created","event":{"event_type":"appointments.created","occurred_at":"...","id":"<uuid>","title":"Initial cardiac consultation","doctor_id":"<uuid>","status":"new"}}
 
-## Architecture diagram
-![Diagram](image.png)
+# 3. Update appointment status (use appointment id from step 2)
+grpcurl -plaintext -d '{"id":"<appointment uuid>","status":"in_progress"}' \
+  localhost:50052 appointment.AppointmentService/UpdateAppointmentStatus
+
+# Notification Service prints:
+{"time":"...","subject":"appointments.status_updated","event":{"event_type":"appointments.status_updated","occurred_at":"...","id":"<uuid>","old_status":"new","new_status":"in_progress"}}
+```
+
+## Consistency Trade-offs
+
+Because broker publishing is **best-effort**, a process crash between DB commit and publish will lose
+the event. Solutions:
+- **Outbox Pattern**: write events to a DB table in the same transaction, then a background worker publishes them
+- **NATS JetStream**: persistent, at-least-once delivery with acknowledgements
+- **RabbitMQ publisher confirms**: broker confirms each message was persisted before ack
+
+## NATS vs RabbitMQ
+
+| | NATS Core | RabbitMQ |
+|---|---|---|
+| Persistence | None — fire-and-forget | Queue-level durability with disk persistence |
+| Setup | Single binary, zero config | Docker image, management UI, exchanges + queues config |
+| Delivery guarantee | At most once | At least once (with publisher confirms + consumer acks) |
+| Use case | Stateless notifications, low-latency | Financial transactions, critical event pipelines |
+
+Choose NATS when: simplicity and speed matter, losing occasional events is acceptable.  
+Choose RabbitMQ when: guaranteed delivery is required (payments, audit logs, compliance).

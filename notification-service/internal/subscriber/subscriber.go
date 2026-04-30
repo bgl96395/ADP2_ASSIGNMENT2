@@ -2,7 +2,7 @@ package subscriber
 
 import (
 	"encoding/json"
-	"log"
+	"fmt"
 	"time"
 
 	"github.com/nats-io/nats.go"
@@ -23,14 +23,14 @@ func Connect(natsURL string) (*Subscriber, error) {
 		if err == nil {
 			break
 		}
-		log.Printf("WARN: attempt %d failed to connect to NATS: %v. Retrying in %v...", counter+1, err, delay)
+		fmt.Printf("WARN: attempt %d failed to connect to NATS: %v. Retrying in %v...", counter+1, err, delay)
 		time.Sleep(delay)
 	}
 	if err != nil {
 		return nil, err
 	}
 
-	log.Println("Notification Service connected to NATS")
+	fmt.Println("Notification Service connected to NATS")
 	return &Subscriber{conn: conn}, nil
 }
 
@@ -46,7 +46,7 @@ func (subscriber *Subscriber) Subscribe() error {
 			return err
 		}
 		subscriber.subscriptions = append(subscriber.subscriptions, sub)
-		log.Printf("Subscribed to subject: %s", subj)
+		fmt.Printf("Subscribed to subject: %s", subj)
 	}
 	return nil
 }
@@ -54,7 +54,7 @@ func (subscriber *Subscriber) Subscribe() error {
 func (subscriber *Subscriber) handleMessage(subject string, data []byte) {
 	var payload map[string]any
 	if err := json.Unmarshal(data, &payload); err != nil {
-		log.Printf("ERROR: failed to deserialize message on %s: %v", subject, err)
+		fmt.Printf("ERROR: failed to deserialize message on %s: %v", subject, err)
 		return
 	}
 
@@ -66,18 +66,18 @@ func (subscriber *Subscriber) handleMessage(subject string, data []byte) {
 
 	logBytes, err := json.Marshal(logEntry)
 	if err != nil {
-		log.Printf("ERROR: failed to marshal log entry: %v", err)
+		fmt.Printf("ERROR: failed to marshal log entry: %v", err)
 		return
 	}
 
-	log.Println(string(logBytes))
+	fmt.Println(string(logBytes))
 }
 
 func (subscriber *Subscriber) Drain() {
 	if subscriber.conn != nil {
 		if err := subscriber.conn.Drain(); err != nil {
-			log.Printf("WARN: error draining NATS connection: %v", err)
+			fmt.Printf("WARN: error draining NATS connection: %v", err)
 		}
-		log.Println("NATS connection drained and closed")
+		fmt.Println("NATS connection drained and closed")
 	}
 }
