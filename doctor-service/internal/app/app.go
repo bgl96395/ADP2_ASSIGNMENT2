@@ -14,15 +14,18 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 	googlegrpc "google.golang.org/grpc"
 )
 
 func Run() {
-	databaseURL := os.Getenv("DATABASE_URL")
-	if databaseURL == "" {
-		databaseURL = "host=localhost port=5432 user=postgres password=postgres dbname=doctor sslmode=disable"
+	err := godotenv.Load()
+	if err != nil {
+		log.Println("No .env file found, using environment variables")
 	}
+
+	databaseURL := os.Getenv("DATABASE_URL")
 
 	database, err := sql.Open("postgres", databaseURL)
 	if err != nil {
@@ -47,11 +50,8 @@ func Run() {
 	}
 	log.Println("Migrations applied successfully")
 
-	// Connect to NATS (best-effort)
 	natsURL := os.Getenv("NATS_URL")
-	if natsURL == "" {
-		natsURL = "nats://localhost:4222"
-	}
+
 	var publisher event.EventPublisher
 	natsPublisher, err := event.NewNATSPublisher(natsURL)
 	if err != nil {
@@ -70,12 +70,14 @@ func Run() {
 	grpcServer := googlegrpc.NewServer()
 	pb.RegisterDoctorServiceServer(grpcServer, handler)
 
-	listen, err := net.Listen("tcp", ":50051")
+	grpcPort := os.Getenv("GRPC_PORT")
+
+	listen, err := net.Listen("tcp", ":"+grpcPort)
 	if err != nil {
 		log.Fatalf("Failed to listen: %v", err)
 	}
 
-	log.Println("Doctor Service running on port :50051")
+	log.Printf("Doctor Service running on port :%s", grpcPort)
 	if err = grpcServer.Serve(listen); err != nil {
 		log.Fatalf("Failed to serve: %v", err)
 	}

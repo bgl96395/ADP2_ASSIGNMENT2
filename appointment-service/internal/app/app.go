@@ -14,15 +14,18 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 	googlegrpc "google.golang.org/grpc"
 )
 
 func Run() {
-	dbURL := os.Getenv("DATABASE_URL")
-	if dbURL == "" {
-		dbURL = "host=localhost port=5432 user=postgres password=postgres dbname=appointment sslmode=disable"
+	err := godotenv.Load()
+	if err != nil {
+		log.Println("No .env file found, using environment variables")
 	}
+
+	dbURL := os.Getenv("DATABASE_URL")
 
 	database, err := sql.Open("postgres", dbURL)
 	if err != nil {
@@ -48,9 +51,7 @@ func Run() {
 	log.Println("Migrations applied successfully")
 
 	natsURL := os.Getenv("NATS_URL")
-	if natsURL == "" {
-		natsURL = "nats://localhost:4222"
-	}
+
 	var publisher event.EventPublisher
 	natsPublisher, err := event.NewNATSPublisher(natsURL)
 	if err != nil {
@@ -63,9 +64,7 @@ func Run() {
 	}
 
 	doctorAddr := os.Getenv("DOCTOR_SERVICE_ADDR")
-	if doctorAddr == "" {
-		doctorAddr = "localhost:50051"
-	}
+
 	doctorClient, err := transportgrpc.New_gRPC_doctor_client(doctorAddr)
 	if err != nil {
 		log.Fatalf("Failed to connect to doctor service: %v", err)
@@ -78,12 +77,15 @@ func Run() {
 	grpcServer := googlegrpc.NewServer()
 	pb.RegisterAppointmentServiceServer(grpcServer, handler)
 
-	listen, err := net.Listen("tcp", ":50052")
+	grpcPort := os.Getenv("GRPC_PORT")
+
+	listen, err := net.Listen("tcp", ":"+grpcPort)
+
 	if err != nil {
 		log.Fatalf("Failed to listen: %v", err)
 	}
 
-	log.Println("Appointment Service running on port :50052")
+	log.Printf("Appointment Service running on port :%s", grpcPort)
 	err = grpcServer.Serve(listen)
 	if err != nil {
 		log.Fatalf("Failed to serve: %v", err)
