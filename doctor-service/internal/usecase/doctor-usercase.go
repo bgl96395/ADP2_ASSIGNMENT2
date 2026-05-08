@@ -35,7 +35,8 @@ func New_doctor_usecase(repo repository.Doctor_repository, pub event.EventPublis
 func cacheTTL() time.Duration {
 	val := os.Getenv("CACHE_TTL_SECONDS")
 	if val != "" {
-		if secs, err := strconv.Atoi(val); err == nil {
+		secs, err := strconv.Atoi(val)
+		if err == nil {
 			return time.Duration(secs) * time.Second
 		}
 	}
@@ -65,7 +66,8 @@ func (usecase *Doctor_usecase) Create_doctor(fullName, specialization, email str
 	}
 
 	ctx := context.Background()
-	if err := usecase.cache.InvalidateDoctorList(ctx); err != nil {
+	err = usecase.cache.InvalidateDoctorList(ctx)
+	if err != nil {
 		log.Printf("ERROR: cache invalidation failed for doctors:list: %v", err)
 	}
 
@@ -77,7 +79,8 @@ func (usecase *Doctor_usecase) Create_doctor(fullName, specialization, email str
 		Specialization: doctor.Specialization,
 		Email:          doctor.Email,
 	}
-	if publisherError := usecase.publisher.Publish("doctors.created", evt); publisherError != nil {
+	publisherError := usecase.publisher.Publish("doctors.created", evt)
+	if publisherError != nil {
 		fmt.Printf("ERROR: failed to publish doctors.created event: %v\n", publisherError)
 	}
 

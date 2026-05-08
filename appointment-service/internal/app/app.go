@@ -5,8 +5,11 @@ import (
 	"log"
 	"net"
 	"os"
+	"strconv"
 
+	"github.com/bgl96395/ADP2_ASSIGNMENT2/appointment-service/internal/cache"
 	"github.com/bgl96395/ADP2_ASSIGNMENT2/appointment-service/internal/event"
+	"github.com/bgl96395/ADP2_ASSIGNMENT2/appointment-service/internal/middleware"
 	"github.com/bgl96395/ADP2_ASSIGNMENT2/appointment-service/internal/repository"
 	transportgrpc "github.com/bgl96395/ADP2_ASSIGNMENT2/appointment-service/internal/transport/grpc"
 	"github.com/bgl96395/ADP2_ASSIGNMENT2/appointment-service/internal/usecase"
@@ -26,14 +29,14 @@ func Run() {
 	}
 
 	dbURL := os.Getenv("DATABASE_URL")
-
 	database, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		log.Fatalf("Failed to connect PostgreSQL: %v", err)
 	}
 	defer database.Close()
 
-	if err = database.Ping(); err != nil {
+	err = database.Ping()
+	if err != nil {
 		log.Fatalf("Database is not reachable: %v", err)
 	}
 
@@ -46,7 +49,6 @@ func Run() {
 	if err != nil {
 		log.Fatalf("Failed to init migrations: %v", err)
 	}
-
 	err = m.Up()
 	if err != nil && err != migrate.ErrNoChange {
 		log.Fatalf("Migration failed: %v", err)
@@ -54,7 +56,6 @@ func Run() {
 	log.Println("Migrations applied successfully")
 
 	natsURL := os.Getenv("NATS_URL")
-
 	var publisher event.EventPublisher
 	natsPublisher, err := event.NewNATSPublisher(natsURL)
 	if err != nil {
@@ -66,24 +67,42 @@ func Run() {
 		defer natsPublisher.Close()
 	}
 
-	doctorAddr := os.Getenv("DOCTOR_SERVICE_ADDR")
+	redisURL := os.Getenv("REDIS_URL")
+	var cacheRepo cache.CacheRepository
+	redisClient, err := cache.NewRedisClient(redisURL)
+	if err != nil {
+		log.Printf("WARN: Redis unavailable: %v. Running without cache.", err)
+		cacheRepo = &cache.NoopCache{}
+	} else {
+		log.Println("Connected to Redis")
+		cacheRepo = cache.NewRedisCacheRepository(redisClient)
+	}
 
+	rpm := 100
+	val := os.Getenv("RATE_LIMIT_RPM")
+	if val != "" {
+		n, err := strconv.Atoi(val)
+		if err == nil {
+			rpm = n
+		}
+	}
+
+	doctorAddr := os.Getenv("DOCTOR_SERVICE_ADDR")
 	doctorClient, err := transportgrpc.New_gRPC_doctor_client(doctorAddr)
 	if err != nil {
 		log.Fatalf("Failed to connect to doctor service: %v", err)
 	}
 
 	repo := repository.New_postgres_appointment_repository(database)
-	uc := usecase.New_appointment_usecase(repo, doctorClient, publisher)
+	uc := usecase.New_appointment_usecase(repo, doctorClient, publisher, cacheRepo)
 	handler := transportgrpc.New_appointment_handler(uc)
 
-	grpcServer := googlegrpc.NewServer()
+	rateLimiter := middleware.NewRateLimiterInterceptor(redisClient, rpm)
+	grpcServer := googlegrpc.NewServer(googlegrpc.UnaryInterceptor(rateLimiter))
 	pb.RegisterAppointmentServiceServer(grpcServer, handler)
 
 	grpcPort := os.Getenv("GRPC_PORT")
-
 	listen, err := net.Listen("tcp", ":"+grpcPort)
-
 	if err != nil {
 		log.Fatalf("Failed to listen: %v", err)
 	}

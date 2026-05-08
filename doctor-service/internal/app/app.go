@@ -36,7 +36,8 @@ func Run() {
 	}
 	defer database.Close()
 
-	if err = database.Ping(); err != nil {
+	err = database.Ping()
+	if err != nil {
 		log.Fatalf("Database is not reachable: %v", err)
 	}
 
@@ -49,7 +50,8 @@ func Run() {
 	if err != nil {
 		log.Fatalf("Failed to init migrations: %v", err)
 	}
-	if err = m.Up(); err != nil && err != migrate.ErrNoChange {
+	err = m.Up()
+	if err != nil && err != migrate.ErrNoChange {
 		log.Fatalf("Migration failed: %v", err)
 	}
 	log.Println("Migrations applied successfully")
@@ -66,7 +68,6 @@ func Run() {
 		defer natsPublisher.Close()
 	}
 
-	// Redis — best-effort, сервис не падает если недоступен
 	redisURL := os.Getenv("REDIS_URL")
 	var cacheRepo cache.CacheRepository
 	redisClient, err := cache.NewRedisClient(redisURL)
@@ -78,10 +79,11 @@ func Run() {
 		cacheRepo = cache.NewRedisCacheRepository(redisClient)
 	}
 
-	// Rate limiter
 	rpm := 100
-	if val := os.Getenv("RATE_LIMIT_RPM"); val != "" {
-		if n, err := strconv.Atoi(val); err == nil {
+	val := os.Getenv("RATE_LIMIT_RPM")
+	if val != "" {
+		n, err := strconv.Atoi(val)
+		if err == nil {
 			rpm = n
 		}
 	}
@@ -101,7 +103,8 @@ func Run() {
 	}
 
 	log.Printf("Doctor Service running on port :%s", grpcPort)
-	if err = grpcServer.Serve(listen); err != nil {
+	err = grpcServer.Serve(listen)
+	if err != nil {
 		log.Fatalf("Failed to serve: %v", err)
 	}
 }

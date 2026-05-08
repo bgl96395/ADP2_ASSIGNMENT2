@@ -58,4 +58,5 @@ type AppointmentStatusUpdatedEvent struct {
 	ID         string    `json:"id"`
 	OldStatus  string    `json:"old_status"`
 	NewStatus  string    `json:"new_status"`
+	DoctorID   string    `json:"doctor_id"`
 }

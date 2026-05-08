@@ -1,10 +1,15 @@
 package usecase
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"log"
+	"os"
+	"strconv"
 	"time"
 
+	"github.com/bgl96395/ADP2_ASSIGNMENT2/appointment-service/internal/cache"
 	"github.com/bgl96395/ADP2_ASSIGNMENT2/appointment-service/internal/event"
 	"github.com/bgl96395/ADP2_ASSIGNMENT2/appointment-service/internal/model"
 	"github.com/bgl96395/ADP2_ASSIGNMENT2/appointment-service/internal/repository"
@@ -24,10 +29,22 @@ type Appointment_usecase struct {
 	repo          repository.Appointment_repository
 	doctor_client Doctor_client
 	publisher     event.EventPublisher
+	cache         cache.CacheRepository
 }
 
-func New_appointment_usecase(repo repository.Appointment_repository, doctor_client Doctor_client, pub event.EventPublisher) *Appointment_usecase {
-	return &Appointment_usecase{repo: repo, doctor_client: doctor_client, publisher: pub}
+func New_appointment_usecase(repo repository.Appointment_repository, doctor_client Doctor_client, pub event.EventPublisher, c cache.CacheRepository) *Appointment_usecase {
+	return &Appointment_usecase{repo: repo, doctor_client: doctor_client, publisher: pub, cache: c}
+}
+
+func cacheTTL() time.Duration {
+	val := os.Getenv("CACHE_TTL_SECONDS")
+	if val != "" {
+		secs, err := strconv.Atoi(val)
+		if err == nil {
+			return time.Duration(secs) * time.Second
+		}
+	}
+	return 60 * time.Second
 }
 
 func (usecase *Appointment_usecase) Create_appointment(title, description string, doctorID string) (*model.Appointment, error) {
@@ -62,6 +79,12 @@ func (usecase *Appointment_usecase) Create_appointment(title, description string
 		return nil, err
 	}
 
+	ctx := context.Background()
+	err = usecase.cache.InvalidateAppointmentList(ctx)
+	if err != nil {
+		log.Printf("ERROR: cache invalidation failed for appointments:list: %v", err)
+	}
+
 	evt := event.AppointmentCreatedEvent{
 		EventType:  "appointments.created",
 		OccurredAt: time.Now().UTC(),
@@ -79,11 +102,51 @@ func (usecase *Appointment_usecase) Create_appointment(title, description string
 }
 
 func (usecase *Appointment_usecase) Get_appointment(id string) (*model.Appointment, error) {
-	return usecase.repo.Find_by_ID(id)
+	ctx := context.Background()
+
+	cached, err := usecase.cache.GetAppointment(ctx, id)
+	if err != nil {
+		log.Printf("WARN: cache get failed for appointment:%s: %v", id, err)
+	}
+	if cached != nil {
+		return cached, nil
+	}
+
+	appointment, err := usecase.repo.Find_by_ID(id)
+	if err != nil {
+		return nil, err
+	}
+
+	err = usecase.cache.SetAppointment(ctx, id, appointment, cacheTTL())
+	if err != nil {
+		log.Printf("ERROR: cache set failed for appointment:%s: %v", id, err)
+	}
+
+	return appointment, nil
 }
 
 func (usecase *Appointment_usecase) List_appoinments() ([]*model.Appointment, error) {
-	return usecase.repo.Find_all()
+	ctx := context.Background()
+
+	cached, err := usecase.cache.GetAppointmentList(ctx)
+	if err != nil {
+		log.Printf("WARN: cache get failed for appointments:list: %v", err)
+	}
+	if cached != nil {
+		return cached, nil
+	}
+
+	list, err := usecase.repo.Find_all()
+	if err != nil {
+		return nil, err
+	}
+
+	err = usecase.cache.SetAppointmentList(ctx, list, cacheTTL())
+	if err != nil {
+		log.Printf("ERROR: cache set failed for appointments:list: %v", err)
+	}
+
+	return list, nil
 }
 
 func (usecase *Appointment_usecase) Update_status(id string, new_status model.Status) (*model.Appointment, error) {
@@ -108,12 +171,23 @@ func (usecase *Appointment_usecase) Update_status(id string, new_status model.St
 		return nil, err
 	}
 
+	ctx := context.Background()
+	err = usecase.cache.SetAppointment(ctx, id, appointment, cacheTTL())
+	if err != nil {
+		log.Printf("ERROR: cache set failed for appointment:%s: %v", id, err)
+	}
+	err = usecase.cache.InvalidateAppointmentList(ctx)
+	if err != nil {
+		log.Printf("ERROR: cache invalidation failed for appointments:list: %v", err)
+	}
+
 	evt := event.AppointmentStatusUpdatedEvent{
 		EventType:  "appointments.status_updated",
 		OccurredAt: time.Now().UTC(),
 		ID:         appointment.ID,
 		OldStatus:  oldStatus,
 		NewStatus:  string(new_status),
+		DoctorID:   appointment.DoctorID,
 	}
 	publisherError := usecase.publisher.Publish("appointments.status_updated", evt)
 	if publisherError != nil {
