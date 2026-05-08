@@ -23,7 +23,8 @@ func main() {
 		log.Fatalf("ERROR: failed to connect to NATS after retries: %v", err)
 	}
 
-	if err := sub.Subscribe(); err != nil {
+	err = sub.Subscribe()
+	if err != nil {
 		log.Fatalf("ERROR: failed to subscribe: %v", err)
 	}
 

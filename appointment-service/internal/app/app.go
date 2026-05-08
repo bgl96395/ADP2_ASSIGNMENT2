@@ -41,11 +41,14 @@ func Run() {
 	if err != nil {
 		log.Fatalf("Failed to create migrate driver: %v", err)
 	}
+
 	m, err := migrate.NewWithDatabaseInstance("file://migrations", "postgres", driver)
 	if err != nil {
 		log.Fatalf("Failed to init migrations: %v", err)
 	}
-	if err = m.Up(); err != nil && err != migrate.ErrNoChange {
+
+	err = m.Up()
+	if err != nil && err != migrate.ErrNoChange {
 		log.Fatalf("Migration failed: %v", err)
 	}
 	log.Println("Migrations applied successfully")

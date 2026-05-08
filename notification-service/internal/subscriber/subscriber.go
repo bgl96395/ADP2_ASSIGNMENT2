@@ -53,7 +53,8 @@ func (subscriber *Subscriber) Subscribe() error {
 
 func (subscriber *Subscriber) handleMessage(subject string, data []byte) {
 	var payload map[string]any
-	if err := json.Unmarshal(data, &payload); err != nil {
+	err := json.Unmarshal(data, &payload)
+	if err != nil {
 		fmt.Printf("ERROR: failed to deserialize message on %s: %v", subject, err)
 		return
 	}

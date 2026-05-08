@@ -42,7 +42,7 @@ migrate -path ./doctor-service/migrations -database "postgres://postgres:postgre
 
 # Rollback
 migrate -path ./doctor-service/migrations -database "postgres://postgres:postgres@localhost:5432/doctor?sslmode=disable" down
-`
+
 
 ## Service Startup Order
 
